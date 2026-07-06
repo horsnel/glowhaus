@@ -11,10 +11,6 @@ import CommunitySection from './sections/CommunitySection';
 import TestimonialSection from './sections/TestimonialSection';
 import PricingSection from './sections/PricingSection';
 import ProSection from './sections/ProSection';
-import SafetySection from './sections/SafetySection';
-import FinalCTASection from './sections/FinalCTASection';
-import AboutSection from './sections/AboutSection';
-import FooterSection from './sections/FooterSection';
 import './App.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -115,18 +111,6 @@ function App() {
 
         {/* Section 9: Pro - pin: true */}
         <ProSection />
-
-        {/* Section 10: Safety - pin: false */}
-        <SafetySection />
-
-        {/* Section 11: Final CTA - pin: true */}
-        <FinalCTASection />
-
-        {/* Section 12: About - pin: false */}
-        <AboutSection />
-
-        {/* Section 13: Footer - pin: false */}
-        <FooterSection />
       </main>
     </div>
   );
