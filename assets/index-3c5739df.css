@@ -201,3 +201,133 @@
 }
 
 /* ---------- END Layer C ---------- */
+
+
+/* ---------- LAYER D: v6 mobile-only fixes ---------- */
+/* All rules scoped to @media (max-width: 640px). Desktop completely untouched. */
+
+@media (max-width: 640px) {
+
+  /* (D1) Hero h1 "YOUR AI GLOW UP STUDIO" — words break mid-word on mobile
+     ---------------------------------------------------------------------
+     Problem: clamp(44px,6vw,96px) keeps font at 44px min. Parent w-[42vw]=168px.
+     "STUDIO" at 44px is ~180px wide, overflows. v5's overflow-wrap: anywhere
+     breaks it mid-word ("STUD"+"IO") which looks unprofessional.
+     Fix: override font-size to 32px on mobile. "STUDIO" ~130px fits in 168px. */
+  .pinned-section h1.font-display.font-black {
+    font-size: 32px !important;
+  }
+
+  /* (D2) GallerySection h2 "CHOOSE/YOUR/VIBE" — same issue as D1
+     --------------------------------------------------------------
+     Problem: clamp(36px,5vw,72px) keeps at 36px min. Parent w-[30vw]=120px.
+     "CHOOSE" at 36px is ~130px, overflows and breaks mid-word.
+     Fix: override font-size to 28px on mobile. "CHOOSE" ~100px fits. */
+  .pinned-section h2.font-display.font-black {
+    font-size: 28px !important;
+  }
+
+  /* (D3) Hero upload card — "Start free" button still cut off after v5
+     -----------------------------------------------------------------
+     Problem: card w-[40vw]=160px on mobile. With p-6 (24px each side) outer
+     + p-8 (32px each side, reduced to 1rem=16px by v5) inner = 81px content.
+     Button "Start free" with px-6 (24px each) + ~75px text = 123px. Doesn't fit.
+     Fix: widen card to 52vw (209px), reduce dashed padding to 0.75rem (12px),
+     reduce button horizontal padding to 1rem (16px).
+     New chain: 209 - 48 (p-6) - 24 (p-3) = 137px content. Button 75+32=107px. Fits. */
+  .pinned-section .w-\[40vw\].bg-white.rounded-\[24px\] {
+    width: 52vw !important;
+    max-width: 340px;
+  }
+  .pinned-section .border-2.border-dashed {
+    padding: 0.75rem !important;
+  }
+  .pinned-section .border-2.border-dashed a.inline-flex.items-center {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* (D4) GO PRO section "Pro" badge — visually INSIDE the "Upgrade now" button
+     --------------------------------------------------------------------------
+     Problem: user wants the Pro pill to appear INSIDE the Upgrade now button,
+     not beside it. v5 used flex-wrap to drop the badge to a 2nd line, but user
+     wants it inside. JS DOM manipulation fails because React re-renders and
+     reverts the move.
+     Fix: CSS-only approach.
+       1) Hide the standalone Pro badge <span> (sibling of the link).
+       2) Add a "★ Pro" badge INSIDE the link via ::after pseudo-element.
+          React cannot revert CSS pseudo-elements.
+       3) Remove flex-wrap (no longer needed). Keep flex row on one line. */
+  /* D4 uses JS (init script) to move the Pro badge span INTO the Upgrade now
+     link on mobile only. CSS just ensures the flex row doesn't wrap (badge
+     stays on same line as button). No CSS ::after — the real badge (with its
+     star icon) is moved inside via DOM manipulation. */
+  .flex.items-center.gap-4:has(> a[href="/tokens"]) {
+    flex-wrap: nowrap;
+  }
+
+  /* (D5) DemoSection before/after labels — hidden behind image
+     ----------------------------------------------------------
+     Problem: BEFORE label at left-[6vw] (~24px) overlaps image card (left-[18vw]
+     to right-[82vw], so 72px-329px on 402px viewport). AFTER label at right-[6vw]
+     similarly overlaps. Image paints OVER labels due to DOM order (image div
+     comes last). User reports "text hidden behind the image".
+     Fix: add z-index:10 so labels paint above image. Add white translucent
+     background pill + subtle text-shadow for readability over any photo. */
+  .pinned-section span.absolute.left-\[6vw\],
+  .pinned-section span.absolute.right-\[6vw\] {
+    z-index: 10 !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+  }
+
+  /* (D6) GallerySection style card labels — "Soft Glam" breaks mid-word
+     -------------------------------------------------------------------
+     Problem: card w-[22vw]=88px on mobile. Label container left-4 right-4
+     (32px). Inner 56px. "Soft Glam" at text-sm (14px) = ~80px. Doesn't fit,
+     breaks mid-word via overflow-wrap: anywhere → "S of t Gl a m".
+     Fix: widen cards to w-[40vw] (161px). Inner 129px. "Soft Glam" fits. */
+  .pinned-section .flex.gap-4.overflow-x-auto a.flex-shrink-0.w-\[22vw\] {
+    width: 40vw !important;
+    max-width: 200px;
+  }
+
+  /* (D7) Onboarding step indicator — connectors too wide
+     ----------------------------------------------------
+     Problem: 5 circles (w-8=32px) + 4 connectors (w-8=32px) + 4×mx-1 (8px) = 320px.
+     Container max-w-lg with p-8 = ~338px inner. Barely fits, user reports overflow.
+     Fix: shorten connectors from w-8 (32px) to w-4 (16px). New total: 160 + 64 + 32
+     = 256px. Plenty of room. Targeted via :has() on the step indicator parent. */
+  .flex.items-center.justify-between:has(> .flex.items-center > .w-8.h-8.rounded-full) .w-8.h-0\.5 {
+    width: 1rem !important;
+  }
+
+  /* (D8) Progress page "Glow Score" row — defensive flex-wrap
+     ---------------------------------------------------------
+     Problem: row contains "Glow Score: 85" pill (~120px) + mood emoji (24px) +
+     gap-3 (12px) = 156px. Should fit in card (~338px inner) but user reports
+     overflow on certain devices.
+     Fix: add flex-wrap: wrap so pill drops to 2nd line if it doesn't fit. */
+  .flex.items-center.gap-3:has(> span.px-2.py-1.rounded-full) {
+    flex-wrap: wrap;
+  }
+
+}
+
+  /* (D9) GO PRO section "EVERYTHING" word overflows container
+     -------------------------------------------------------------
+     Problem: GO PRO h2 has "GO PRO<br>UNLOCK<br>EVERYTHING". At D2's 28px font
+     size, "EVERYTHING" (10 chars) = 177px wide. Parent w-[38vw] = 148px on
+     390px viewport. Word overflows and gets clipped by .pinned-section overflow.
+     Fix: widen the GO PRO text container from w-[38vw] to w-[47vw] (183px).
+     "EVERYTHING" at 177px fits with 6px margin. Image starts at left=56vw,
+     so 9vw + 47vw = 56vw right edge — no overlap with image. */
+  .pinned-section .absolute.left-\[9vw\].top-\[28vh\].w-\[38vw\] {
+    width: 47vw !important;
+  }
+
+/* ---------- END Layer D ---------- */
