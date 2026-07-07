@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build artifacts (regenerate from glowhaus/ via `npm run build`)
+glowhaus/dist/
+glowhaus/.wrangler/
+
+# Workspace skills (not part of GlowHaus app)
+skills/
+
+# Misc
+.DS_Store
+*.log
+.env
+.env.local

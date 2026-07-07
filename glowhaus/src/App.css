@@ -1,0 +1,223 @@
+/* =====================================================================
+   App.css — GlowHaus landing page
+   ---------------------------------------------------------------------
+   1. Defines utility classes referenced by App.tsx sections but never
+      previously defined (pinned-section, flowing-section, grain-overlay,
+      card-shadow, card-shadow-hover, scrollbar-hide, image-card).
+   2. Removes the Vite boilerplate #root constraint that was breaking
+      absolute vw-based positioning on wide viewports.
+   3. Mobile (<768px) layout overrides that COEXIST with GSAP inline
+      transforms. GSAP sets `transform` and `opacity` via inline styles;
+      these overrides only touch `left/top/width/height/max-width`,
+      never transform/opacity, so pinning + scrub animations keep working.
+   ===================================================================== */
+
+/* (intentionally no #root rule — Vite's default max-width:1280px;
+   padding:2rem; text-align:center was constraining the whole app
+   and breaking the hero's vw-based absolute positioning) */
+
+/* ----- Section primitives ----- */
+.pinned-section {
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.flowing-section {
+  position: relative;
+}
+
+/* ----- Grain overlay (fixed full-screen noise) ----- */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+}
+
+/* ----- Card shadows ----- */
+.card-shadow {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.card-shadow-hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* ----- Image card ----- */
+.image-card {
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* ----- Scrollbar hide (horizontal strip in Gallery) ----- */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* =====================================================================
+   Global mobile tuning
+   ===================================================================== */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  /* prevent rubber-banding during GSAP pin snaps */
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =====================================================================
+   Mobile (<768px) layout overrides
+   ---------------------------------------------------------------------
+   Strategy: each pinned section uses absolute vw/vh positioning designed
+   for ~1280×800 viewports. On phones that geometry collapses into
+   unreadable 80px-wide columns. We override left/top/width/height to
+   switch each pinned section to a stacked layout (text top, image bottom)
+   so the GSAP pin still holds the section for 100vh while the user
+   scrolls through its enter/exit timeline.
+
+   These overrides DO NOT touch `transform` or `opacity` — the two
+   properties GSAP animates via inline styles — so the animations
+   continue to drive the entrance and exit of every element.
+   ===================================================================== */
+@media (max-width: 767px) {
+  /* ----- Hero / FinalCTA / Testimonial / Pro: left text column ----- */
+  .pinned-section .absolute.left-\[9vw\],
+  .pinned-section .absolute.left-\[6vw\] {
+    left: 5vw !important;
+    top: 8vh !important;
+    width: 90vw !important;
+  }
+
+  /* ----- Right image card (Hero / FinalCTA / Testimonial / Pro) ----- */
+  .pinned-section .absolute.left-\[58vw\],
+  .pinned-section .absolute.left-\[56vw\] {
+    left: 5vw !important;
+    top: auto !important;
+    bottom: 6vh !important;
+    width: 90vw !important;
+    height: 38vh !important;
+  }
+
+  /* ----- Demo: large centered before/after card ----- */
+  .pinned-section .absolute.left-\[18vw\] {
+    left: 5vw !important;
+    top: 14vh !important;
+    width: 90vw !important;
+    height: 60vh !important;
+  }
+
+  /* ----- Demo side labels (BEFORE / AFTER) ----- */
+  .pinned-section .absolute.left-\[6vw\].top-\[46vh\],
+  .pinned-section .absolute.right-\[6vw\].top-\[46vh\] {
+    top: 76vh !important;
+  }
+  .pinned-section .absolute.right-\[6vw\].top-\[20vh\] {
+    top: 78vh !important;
+    right: 5vw !important;
+    left: auto !important;
+    max-width: 90vw !important;
+  }
+
+  /* ----- Gallery: headline + horizontal strip ----- */
+  .pinned-section .absolute.left-\[9vw\].top-\[30vh\] {
+    left: 5vw !important;
+    top: 6vh !important;
+    width: 90vw !important;
+  }
+  .pinned-section .absolute.left-\[44vw\] {
+    left: 0 !important;
+    top: 38vh !important;
+    width: 100vw !important;
+    height: 56vh !important;
+  }
+  /* Gallery style cards — make them swipeable width on mobile */
+  .pinned-section .w-\[22vw\] {
+    width: 60vw !important;
+    height: 48vh !important;
+  }
+
+  /* ----- Width overrides for vw-based columns ----- */
+  .pinned-section .w-\[42vw\],
+  .pinned-section .w-\[40vw\],
+  .pinned-section .w-\[38vw\],
+  .pinned-section .w-\[36vw\],
+  .pinned-section .w-\[34vw\],
+  .pinned-section .w-\[30vw\] {
+    width: 90vw !important;
+  }
+
+  /* ----- Height overrides for vw-based image cards ----- */
+  .pinned-section .h-\[72vh\] {
+    height: 38vh !important;
+  }
+
+  /* ----- Max-width overrides for vw-constrained text ----- */
+  .pinned-section .max-w-\[38vw\],
+  .pinned-section .max-w-\[34vw\],
+  .pinned-section .max-w-\[26vw\] {
+    max-width: 88vw !important;
+  }
+
+  /* ----- Headlines: tighten clamp() lower bound for small screens ----- */
+  .pinned-section .text-\[clamp\(44px\,6vw\,96px\)\] {
+    font-size: clamp(34px, 9vw, 56px) !important;
+  }
+  .pinned-section .text-\[clamp\(36px\,5vw\,72px\)\] {
+    font-size: clamp(30px, 8vw, 48px) !important;
+  }
+
+  /* ----- Safe-area insets for notched devices ----- */
+  .pinned-section,
+  .flowing-section {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* ----- Flowing sections: reduce vertical padding ----- */
+  .flowing-section {
+    padding-top: 8vh !important;
+    padding-bottom: 8vh !important;
+  }
+  .flowing-section.py-\[12vh\] {
+    padding-top: 8vh !important;
+    padding-bottom: 8vh !important;
+  }
+
+  /* ----- Mobile menu & sidebar: ensure 44px min touch targets ----- */
+  nav a,
+  nav button,
+  aside a,
+  aside button {
+    min-height: 44px;
+  }
+
+  /* ----- Gallery horizontal strip: allow touch panning while pinned ----- */
+  .pinned-section .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+}
+
+/* =====================================================================
+   Reduced motion: respect user preference (disables GSAP scroll-driven
+   transforms via the matching rule in index.css; here we just ensure
+   pinned sections can still be scrolled through)
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) and (max-width: 767px) {
+  .pinned-section {
+    height: auto !important;
+    min-height: 100vh;
+    overflow: visible !important;
+  }
+}
