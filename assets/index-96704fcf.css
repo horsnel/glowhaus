@@ -331,3 +331,114 @@
   }
 
 /* ---------- END Layer D ---------- */
+
+
+/* ---------- START Layer E (v7 mobile fixes) ---------- */
+/* Layer E: addresses 5 user-reported issues after v6 promotion.
+   All rules scoped to @media (max-width: 640px). Desktop untouched. */
+
+@media (max-width: 640px) {
+
+  /* (E1) Disable overflow-wrap: anywhere on pinned-section paragraphs
+     -----------------------------------------------------------------
+     Problem: Tailwind sets overflow-wrap: anywhere globally. On narrow
+     mobile containers (max-w-[Xvw]), this causes em-dashes and long
+     words to break mid-word, creating visible "dash between words" effect.
+     Example: "From clean girl to night out—explore" breaks as
+     "out—
+explore" with the em-dash dangling at line end.
+     Fix: switch to overflow-wrap: break-word (only breaks at word
+     boundaries when possible, falls back to mid-word only as last resort). */
+  .pinned-section p,
+  .pinned-section h1,
+  .pinned-section h2,
+  .pinned-section h3,
+  .pinned-section span {
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+  }
+
+  /* (E2) Widen ALL narrow max-w-[Xvw] paragraphs in pinned-section
+     -----------------------------------------------------------------
+     Problem: 4 paragraphs use max-w-[26vw]/[34vw]/[38vw] which on a 402px
+     viewport = 105-153px. Even with break-word, that's too narrow for
+     readable text and causes the em-dash issue.
+     Fix: override to max-w-[80vw] (~322px on 402 viewport). Text wraps
+     naturally at word boundaries, no mid-word breaks. */
+  .pinned-section p.max-w-\[26vw\],
+  .pinned-section p.max-w-\[34vw\],
+  .pinned-section p.max-w-\[38vw\] {
+    max-width: 80vw !important;
+  }
+
+  /* (E3-E6) REMOVED — widening text containers caused overlap with images.
+     Instead, the em-dash issue is fixed via JS in v7-init.js which replaces
+     "—" with " — " (spaces around em-dash) so the browser can break at
+     the spaces, and the em-dash stays attached to whichever word it's
+     next to. This preserves the original layout (text container narrow
+     on left, image on right) while fixing the "dash at end of line"
+     problem. */
+
+  /* (E7) Hero upload card parent — move UP so "Start free" button fits
+     -----------------------------------------------------------------
+     Problem: parent absolute top-[20vh] = 133px on 667px viewport (iPhone
+     375x667). Card is 4th child (after label + h1 + paragraph), so card
+     starts at y=475. Card is 320px tall (p-6 + dashed p-8 + content).
+     Card bottom = 795. Button at y=649, btnBottom=693. Viewport=667.
+     Button bottom is 26px BELOW the fold — cut off.
+     Fix: move parent up from top-[20vh] to top-[10vh] (~67px on 667
+     viewport). Card now starts at y=475-66=409. Button at y=583,
+     btnBottom=627, viewport=667. Button fully visible with 40px margin. */
+  .pinned-section .absolute.left-\[9vw\].top-\[20vh\].w-\[42vw\] {
+    top: 10vh !important;
+  }
+
+  /* (E8) Hero upload card — reduce vertical footprint
+     -----------------------------------------------------------------
+     Problem: card is 320px tall. Dashed border p-8 (was reduced to
+     0.75rem=12px by D3, still too much). Icon mb-4 (16px), "Drop your
+     photo" paragraph mb-4 (16px), button py-3 (12px each).
+     Fix: reduce dashed padding from 0.75rem to 0.5rem (8px), reduce
+     icon mb-4 to mb-2 (8px), reduce paragraph mb-4 to mb-2 (8px).
+     Saves ~24px vertical, button moves up by 24px. */
+  .pinned-section .border-2.border-dashed {
+    padding: 0.5rem !important;
+  }
+  .pinned-section .border-2.border-dashed svg {
+    margin-bottom: 0.5rem !important;
+  }
+  .pinned-section .border-2.border-dashed p {
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* (E9) Hero h1 — also reduce font-size for very small viewports
+     -----------------------------------------------------------------
+     Problem: D1 set h1 to 32px. But on 360px viewport, "YOUR AI GLOW UP
+     STUDIO" h1 wraps to many lines, pushing the upload card down.
+     Fix: use a slightly smaller h1 (28px) on very small viewports. */
+  @media (max-width: 400px) {
+    .pinned-section h1.font-display.font-black {
+      font-size: 26px !important;
+    }
+    .pinned-section h2.font-display.font-black {
+      font-size: 24px !important;
+    }
+    /* On very small viewports (≤360px), also move the upload card parent
+       up even more to ensure "Start free" button is fully visible. */
+    .pinned-section .absolute.left-\[9vw\].top-\[20vh\].w-\[42vw\] {
+      top: 6vh !important;
+    }
+  }
+
+  /* (E10) Hero paragraph — reduce mb-8 to mb-4 to save vertical space
+     -----------------------------------------------------------------
+     Problem: paragraph "Upload a selfie..." has mb-8 (32px) which pushes
+     the upload card down unnecessarily.
+     Fix: reduce to mb-4 (16px). Saves 16px. */
+  .pinned-section p.max-w-\[38vw\] {
+    margin-bottom: 1rem !important;
+  }
+
+}
+
+/* ---------- END Layer E ---------- */
