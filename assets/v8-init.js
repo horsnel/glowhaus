@@ -1,17 +1,7 @@
-// v7 init script — supersedes v6-init.js
-// Six responsibilities:
-//   1) Patch "Read our story" link href="#" -> "/signup" (kept from v5)
-//   2) Patch all footer link hrefs based on label text. Links with no
-//      destination route are hidden (parent <li> set to display:none).
-//   3) Move the GO PRO section's "Pro" badge <span> INTO the "Upgrade now"
-//      <a> button, so the badge appears inside the button.
-//   4) NEW v7: Replace "Back to app" link text with "Get started" and
-//      point it to /signup (was /app). User wants authentication entry.
-//   5) NEW v7: Scroll-to-top on SPA route change. The React app uses
-//      history.pushState/replaceState for navigation and doesn't reset
-//      scroll, so users land mid-page after clicking footer links.
-//   6) NEW v7: On plain <a href="/route"> clicks (full page navigation
-//      via Cloudflare Pages SPA fallback), also reset scroll to top.
+// v8 init script — supersedes v7-init.js
+// CRITICAL FIX: All patch functions now have idempotency guards to prevent
+// infinite MutationObserver loops. The previous version re-set attributes
+// on every observer callback, causing the browser to freeze on /tokens.
 (function() {
   var FOOTER_LINK_MAP = {
     'Styles': '/styles',
@@ -22,17 +12,26 @@
     'Terms': '/legal/terms',
     'Privacy Policy': '/legal/privacy',
     'Terms of Service': '/legal/terms',
-    'Cookie Policy': '/legal/privacy'
+    'Cookie Policy': '/legal/cookies/'
   };
   var FOOTER_LINK_HIDE = ['About', 'Careers', 'Press', 'Contact',
                           'Help Center', 'Cookies'];
 
+  function absUrl(path) {
+    return window.location.origin + path;
+  }
+
   function patchStoryLink() {
     var links = document.querySelectorAll('a');
     for (var i = 0; i < links.length; i++) {
-      var txt = (links[i].textContent || '').trim();
-      if (/read our story/i.test(txt) && links[i].getAttribute('href') === '#') {
-        links[i].setAttribute('href', '/signup');
+      var a = links[i];
+      var txt = (a.textContent || '').trim();
+      if (!/read our story/i.test(txt)) continue;
+      var cur = a.getAttribute('href') || '';
+      // GUARD: skip if already patched to an absolute /signup URL
+      if (cur === absUrl('/signup')) continue;
+      if (cur === '#') {
+        a.setAttribute('href', absUrl('/signup'));
       }
     }
   }
@@ -43,9 +42,13 @@
     for (var i = 0; i < links.length; i++) {
       var a = links[i];
       var txt = (a.textContent || '').trim();
-      if (a.getAttribute('href') !== '#') continue;
+      var cur = a.getAttribute('href') || '';
+      // GUARD: skip if already an absolute URL (already patched)
+      if (cur.indexOf('http') === 0) continue;
+      // Only patch links with href="#" (un-patched) or relative paths
+      if (cur !== '#' && cur.charAt(0) !== '/') continue;
       if (txt in FOOTER_LINK_MAP) {
-        a.setAttribute('href', FOOTER_LINK_MAP[txt]);
+        a.setAttribute('href', absUrl(FOOTER_LINK_MAP[txt]));
       } else if (isMobile && FOOTER_LINK_HIDE.indexOf(txt) !== -1) {
         var li = a.closest('li');
         if (li) li.style.display = 'none';
@@ -57,11 +60,14 @@
   function moveProBadgeIntoButton() {
     if (window.innerWidth > 640) return;
     var upgradeLink = null;
-    var tokenLinks = document.querySelectorAll('a[href="/tokens"]');
+    var tokenLinks = document.querySelectorAll('a');
     for (var i = 0; i < tokenLinks.length; i++) {
       if (tokenLinks[i].textContent.trim() === 'Upgrade now') {
-        upgradeLink = tokenLinks[i];
-        break;
+        var h = tokenLinks[i].getAttribute('href') || '';
+        if (h.indexOf('/tokens') !== -1) {
+          upgradeLink = tokenLinks[i];
+          break;
+        }
       }
     }
     if (!upgradeLink) return;
@@ -83,13 +89,6 @@
   }
 
   function patchEmDashes() {
-    // NEW v7: Replace em-dash "—" with ", " (comma + space) in paragraph
-    // text. The em-dash was causing a visual "dash at end of line" effect
-    // on narrow mobile containers ("out—\nexplore"). Replacing with a
-    // comma preserves the sentence meaning while eliminating the dangling
-    // dash. The comma allows natural line breaking at word boundaries.
-    // Runs on ALL viewports (em-dash issue is most visible on mobile but
-    // affects desktop too on narrow containers).
     var paragraphs = document.querySelectorAll('p, h1, h2, h3, h4, span');
     for (var i = 0; i < paragraphs.length; i++) {
       var el = paragraphs[i];
@@ -100,13 +99,9 @@
       for (var j = 0; j < nodes.length; j++) {
         var text = nodes[j].nodeValue;
         if (text.indexOf('\u2014') === -1) continue;
-        // Replace "X—Y" with "X, Y" (comma + space instead of em-dash)
-        // Also handle "X— Y" and "X —Y" (em-dash with one space)
         var newText = text
           .replace(/\s*\u2014\s*/g, ', ')
-          // Clean up double commas (e.g., "word,, word" → "word, word")
           .replace(/,\s*,/g, ',')
-          // Clean up ", ." (comma before period) → "."
           .replace(/,\s*\./g, '.');
         if (newText !== text) {
           nodes[j].nodeValue = newText;
@@ -116,29 +111,73 @@
   }
 
   function patchBackToAppLink() {
-    // NEW v7: Replace "Back to app" link text with "Get started" and
-    // point it to /signup (was /app). The "Back to app" link appears on
-    // the /tokens page header. User wants it to be an auth entry point.
-    // Runs on ALL viewports (text change applies everywhere).
+    var targetHref = absUrl('/signup');
     var links = document.querySelectorAll('a');
     for (var i = 0; i < links.length; i++) {
       var a = links[i];
       var txt = (a.textContent || '').trim();
-      if (txt === 'Back to app') {
-        var href = a.getAttribute('href') || '';
-        if (href === '/app') {
-          a.setAttribute('href', '/signup');
-          a.textContent = 'Get started';
-        }
+      var href = a.getAttribute('href') || '';
+
+      // GUARD: If already fully patched (correct text, correct href,
+      // correct className, has data-v8-pill), skip ALL modifications
+      // to avoid triggering MutationObserver in a loop.
+      var pillClass = 'glow-btn-primary';
+      if (txt === 'Get started' &&
+          href === targetHref &&
+          a.getAttribute('data-v8-pill') === '1' &&
+          a.className === pillClass) {
+        continue;
+      }
+
+      // Match original "Back to app" (href contains /app)
+      var isOriginal = txt === 'Back to app' && href.indexOf('/app') !== -1;
+      // Match partially-patched (text changed but not all attributes)
+      var isPartial = txt === 'Get started' && a.getAttribute('data-v8-pill') === '1';
+      if (!isOriginal && !isPartial) continue;
+
+      a.setAttribute('href', targetHref);
+      a.textContent = 'Get started';
+      a.setAttribute('data-v8-pill', '1');
+      a.className = pillClass;
+      a.style.textDecoration = 'none';
+      a.style.display = 'inline-flex';
+      a.style.alignItems = 'center';
+      a.style.justifyContent = 'center';
+      a.style.gap = '0.5rem';
+    }
+  }
+
+  function gateCommunityButtons() {
+    var path = window.location.pathname || '';
+    var onCommunity = path === '/community' || path === '/community/';
+    if (!onCommunity) return;
+
+    var targetHref = absUrl('/signup');
+    var links = document.querySelectorAll('a');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      var href = a.getAttribute('href') || '';
+      var txt = (a.textContent || '').trim();
+      var cls = a.className || '';
+
+      // GUARD: skip if already pointing to /signup (absolute URL)
+      if (href === targetHref) continue;
+
+      var pointsToApp = href === '/app' || href.indexOf('/app') !== -1;
+      if (!pointsToApp) continue;
+
+      if (txt === 'Submit Look') {
+        a.setAttribute('href', targetHref);
+        continue;
+      }
+      if (txt === '' && cls.indexOf('fixed') !== -1 && cls.indexOf('bottom-6') !== -1) {
+        a.setAttribute('href', targetHref);
+        continue;
       }
     }
   }
 
   function setupScrollToTop() {
-    // NEW v7: Scroll-to-top on SPA route change.
-    // React Router uses history.pushState under the hood. We monkey-patch
-    // pushState/replaceState to call window.scrollTo(0,0) after each nav.
-    // Also listen for popstate (back/forward button).
     if (window.__v7_scroll_patched) return;
     window.__v7_scroll_patched = true;
 
@@ -159,19 +198,17 @@
       setTimeout(function() { window.scrollTo(0, 0); }, 0);
     });
 
-    // Also intercept clicks on internal <a href="/..."> links (full page
-    // navigation via Cloudflare Pages SPA fallback). When the new page
-    // loads, scroll should start at top, not preserved.
     document.addEventListener('click', function(e) {
       var a = e.target.closest ? e.target.closest('a') : null;
       if (!a) return;
       var href = a.getAttribute('href') || '';
-      if (href.charAt(0) !== '/' || href.charAt(1) === '/') return;
       if (href.charAt(0) === '#') return;
+      var isSameOriginAbs = href.indexOf(window.location.origin + '/') === 0;
+      var isRelPath = href.charAt(0) === '/' && href.charAt(1) !== '/';
+      if (!isSameOriginAbs && !isRelPath) return;
       try { sessionStorage.setItem('v7_scroll_top', '1'); } catch(e) {}
     }, true);
 
-    // On page load, check the flag and scroll to top
     if (sessionStorage.getItem('v7_scroll_top') === '1') {
       sessionStorage.removeItem('v7_scroll_top');
       window.scrollTo(0, 0);
@@ -181,12 +218,19 @@
     }
   }
 
+  // Throttle patchAll to prevent rapid-fire calls from MutationObserver
+  var patchTimer = null;
   function patchAll() {
-    patchStoryLink();
-    patchFooterLinks();
-    moveProBadgeIntoButton();
-    patchBackToAppLink();
-    patchEmDashes();
+    if (patchTimer !== null) return;
+    patchTimer = setTimeout(function() {
+      patchTimer = null;
+      patchStoryLink();
+      patchFooterLinks();
+      moveProBadgeIntoButton();
+      patchBackToAppLink();
+      patchEmDashes();
+      gateCommunityButtons();
+    }, 50);
   }
 
   setupScrollToTop();
@@ -208,11 +252,11 @@
 
   if (document.body) {
     var observer = new MutationObserver(function() { patchAll(); });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['href', 'class'] });
   } else {
     document.addEventListener('DOMContentLoaded', function() {
       var observer = new MutationObserver(function() { patchAll(); });
-      observer.observe(document.body, { childList: true, subtree: true });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['href', 'class'] });
     });
   }
 })();
